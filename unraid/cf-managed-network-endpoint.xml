@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>cf-managed-network-endpoint</Name>
+  <Repository>ghcr.io/tom-joad/cf-managed-network-endpoint:latest</Repository>
+  <Registry>https://ghcr.io</Registry>
+  <Network>br0</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Tom-Joad/cf-managed-network-endpoint</Support>
+  <Project>https://github.com/Tom-Joad/cf-managed-network-endpoint</Project>
+  <Overview>
+    TLS-Endpunkt fuer Cloudflare Zero Trust "Managed Networks". Liefert auf
+    Port 6443 ein selbstsigniertes Zertifikat aus; der Cloudflare-WARP-Client
+    prueft dessen SHA-256-Fingerprint, um zu erkennen, ob sich das Geraet im
+    Heimnetz befindet. Keine Anwendungslogik - reine Identitaets-Bake.
+
+    Das Zertifikat wird beim allerersten Start einmalig erzeugt und im
+    /certs-Volume abgelegt. Solange das Volume erhalten bleibt, bleibt der
+    Fingerprint ueber Neustarts und Image-Updates stabil. Das Volume NIEMALS
+    loeschen - sonst entsteht ein neues Zertifikat mit neuem Fingerprint und
+    die Netzwerkerkennung bricht stillschweigend.
+
+    Der Fingerprint steht bei jedem Start gut sichtbar im Container-Log
+    (Unraid: Container-Icon -> Logs).
+
+    Netzwerk: Custom-VLAN-Interface (z. B. br0.10) muss auf der Maschine
+    existieren; statische IP ausserhalb des DHCP-Pools in der
+    "Fixed IP address"-Einstellung dieses Containers setzen.
+    Image ist privat: vorher einmalig "docker login ghcr.io" mit einem
+    read:packages-PAT (siehe README).
+  </Overview>
+  <Category>Network:Other Security:</Category>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <WebUI/>
+  <Config Name="Zertifikats-Volume" Target="/certs" Default="/mnt/user/appdata/cf-managed-network-endpoint/certs" Mode="rw" Description="Persistenter Speicher fuer cert.pem/key.pem. NIEMALS loeschen - sonst neuer Fingerprint und die Cloudflare-Netzwerkerkennung bricht." Type="Path" Display="always" Required="true" Mask="false"/>
+</Container>
