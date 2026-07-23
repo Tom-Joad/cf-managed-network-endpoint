@@ -63,19 +63,6 @@ openssl s_client -connect <STATISCHE-IP>:6443 </dev/null 2>/dev/null \
 Cloudflare erwartet den Wert **ohne Doppelpunkte** (das Log gibt beide
 Formate aus).
 
-## Image beziehen (privates ghcr.io-Package)
-
-Das Package ist privat. Auf der Unraid-Maschine einmalig anmelden — mit einem
-GitHub-PAT (classic) mit Scope `read:packages`:
-
-```sh
-docker login ghcr.io -u Tom-Joad
-# Passwort: der PAT
-```
-
-Unraid speichert die Anmeldung in `/root/.docker/config.json`; danach
-funktionieren Pull und Auto-Update über die Unraid-UI.
-
 ## Deployment auf Unraid
 
 Zielumgebung (Werte an dein eigenes Netzwerk anpassen):

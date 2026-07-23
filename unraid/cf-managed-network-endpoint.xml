@@ -26,8 +26,6 @@
     Netzwerk: Custom-VLAN-Interface (z. B. br0.10) muss auf der Maschine
     existieren; statische IP ausserhalb des DHCP-Pools in der
     "Fixed IP address"-Einstellung dieses Containers setzen.
-    Image ist privat: vorher einmalig "docker login ghcr.io" mit einem
-    read:packages-PAT (siehe README).
   </Overview>
   <Category>Network:Other Security:</Category>
   <ExtraParams>--restart unless-stopped</ExtraParams>
