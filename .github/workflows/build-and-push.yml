@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
   build:
@@ -43,6 +44,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -50,3 +52,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (keyless, GitHub OIDC)
+        env:
+          IMAGE: ghcr.io/tom-joad/cf-managed-network-endpoint
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
