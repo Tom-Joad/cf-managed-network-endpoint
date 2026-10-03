@@ -1,0 +1,53 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+# The fingerprint of this certificate is what Cloudflare compares. It must
+# never change by accident, so the key pair is only ever created when neither
+# file exists, and never when just one of them is missing.
+KEYS=/config/keys
+CERT="${KEYS}/cert.crt"
+KEY="${KEYS}/cert.key"
+CN="managed-network.internal"
+# Where versions before 1.0.0 kept the pair (a volume mounted at /certs).
+OLD=/certs
+
+mkdir -p "${KEYS}"
+
+if [[ -f ${CERT} && -f ${KEY} ]]; then
+    echo "Using the existing certificate: ${CERT}"
+elif [[ -f ${CERT} || -f ${KEY} ]]; then
+    echo "ERROR: ${KEYS} holds only one of cert.crt/cert.key." >&2
+    echo "Check the volume or restore it from backup. No new certificate is" >&2
+    echo "created on purpose: it would change the fingerprint." >&2
+    exit 1
+elif [[ -f ${OLD}/cert.pem && -f ${OLD}/key.pem ]]; then
+    echo "Taking over the certificate from ${OLD} (same fingerprint as before)"
+    cp "${OLD}/cert.pem" "${CERT}"
+    cp "${OLD}/key.pem" "${KEY}"
+elif [[ -f ${OLD}/cert.pem || -f ${OLD}/key.pem ]]; then
+    echo "ERROR: ${OLD} holds only one of cert.pem/key.pem." >&2
+    echo "Check the volume or restore it from backup. No new certificate is" >&2
+    echo "created on purpose: it would change the fingerprint." >&2
+    exit 1
+else
+    echo "No certificate found: creating one (CN=${CN}, RSA 2048, 3650 days)"
+    openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+        -subj "/CN=${CN}" -keyout "${KEY}" -out "${CERT}"
+fi
+
+chmod 600 "${KEY}"
+chmod 644 "${CERT}"
+lsiown -R abc:abc "${KEYS}"
+
+FP_COLON=$(openssl x509 -in "${CERT}" -noout -fingerprint -sha256 | cut -d= -f2)
+FP_PLAIN=$(printf '%s' "${FP_COLON}" | tr -d ':' | tr 'A-F' 'a-f')
+
+echo "=================================================================="
+echo " SHA-256 fingerprint of the TLS certificate"
+echo ""
+echo "   ${FP_COLON}"
+echo ""
+echo " For Cloudflare Zero Trust (managed networks, without colons):"
+echo ""
+echo "   ${FP_PLAIN}"
+echo "=================================================================="

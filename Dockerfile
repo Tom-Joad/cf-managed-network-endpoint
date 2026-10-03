@@ -1,16 +1,31 @@
-FROM nginx:alpine
+# linuxserver.io's Alpine 3.23 + nginx base: s6-overlay, PUID/PGID/UMASK/TZ,
+# the abc user and docker mods, as in every linuxserver.io container.
+# Pinned by digest (a multi-arch index); Dependabot proposes new digests.
+FROM ghcr.io/linuxserver/baseimage-alpine-nginx:3.23@sha256:5b3c7c86851453ef739660ce56262d010e59dbe52e9e03bdf00a5d3f208d97f0
 
-# openssl: Zertifikatserzeugung + Fingerprint; curl: Healthcheck.
-# Nicht darauf verlassen, dass das Basisimage beides mitbringt.
+# image.source is what makes a GHCR package inherit the repository's
+# visibility instead of staying private on its own.
+LABEL org.opencontainers.image.source="https://github.com/Tom-Joad/cf-managed-network-endpoint" \
+      org.opencontainers.image.title="cf-managed-network-endpoint" \
+      org.opencontainers.image.description="TLS endpoint for Cloudflare Zero Trust managed networks: serves a stable self-signed certificate on port 6443" \
+      org.opencontainers.image.licenses="MIT"
+
+# openssl: certificate and fingerprint; curl: health check. Don't rely on the
+# base image shipping both.
 RUN apk add --no-cache openssl curl
 
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# s6 services and the nginx site (see root/).
+COPY root/ /
+RUN chmod +x /etc/s6-overlay/s6-rc.d/init-cfmne-keys/run
 
 EXPOSE 6443
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+# The key pair (/config/keys) and the nginx config (/config/nginx).
+# Keep it: a new key pair means a new fingerprint.
+VOLUME /config
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsk https://127.0.0.1:6443/ || exit 1
 
-ENTRYPOINT ["/entrypoint.sh"]
+# The entrypoint stays the base image's /init (s6-overlay), which must run as
+# PID 1: don't add `--init` to `docker run`.

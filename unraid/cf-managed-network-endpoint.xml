@@ -8,27 +8,33 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/Tom-Joad/cf-managed-network-endpoint</Support>
   <Project>https://github.com/Tom-Joad/cf-managed-network-endpoint</Project>
+  <TemplateURL>https://raw.githubusercontent.com/Tom-Joad/cf-managed-network-endpoint/main/unraid/cf-managed-network-endpoint.xml</TemplateURL>
   <Overview>
-    TLS-Endpunkt fuer Cloudflare Zero Trust "Managed Networks". Liefert auf
-    Port 6443 ein selbstsigniertes Zertifikat aus; der Cloudflare-WARP-Client
-    prueft dessen SHA-256-Fingerprint, um zu erkennen, ob sich das Geraet im
-    Heimnetz befindet. Keine Anwendungslogik - reine Identitaets-Bake.
+    TLS endpoint for Cloudflare Zero Trust "Managed Networks". Serves a self-signed
+    certificate on port 6443; the Cloudflare WARP client compares its SHA-256 fingerprint
+    to tell whether a device is on the home network. No application logic.
 
-    Das Zertifikat wird beim allerersten Start einmalig erzeugt und im
-    /certs-Volume abgelegt. Solange das Volume erhalten bleibt, bleibt der
-    Fingerprint ueber Neustarts und Image-Updates stabil. Das Volume NIEMALS
-    loeschen - sonst entsteht ein neues Zertifikat mit neuem Fingerprint und
-    die Netzwerkerkennung bricht stillschweigend.
+    The certificate is created once, on the very first start, and kept in the Config
+    folder (keys/). As long as that folder survives, the fingerprint stays the same across
+    restarts and image updates. NEVER delete it: a new certificate means a new fingerprint,
+    and network detection breaks silently. Include the appdata folder in your backups.
 
-    Der Fingerprint steht bei jedem Start gut sichtbar im Container-Log
-    (Unraid: Container-Icon -> Logs).
+    The fingerprint is printed in the container log on every start (Unraid: container icon
+    -> Logs).
 
-    Netzwerk: Custom-VLAN-Interface (z. B. br0.10) muss auf der Maschine
-    existieren; statische IP ausserhalb des DHCP-Pools in der
-    "Fixed IP address"-Einstellung dieses Containers setzen.
+    Upgrading from a version before 1.0.0: keep the old /certs path below for the first
+    start, so the existing certificate is taken over. Then remove it.
+
+    Network: a custom VLAN interface (e.g. br0.10) must exist on the machine; set a static
+    IP outside the DHCP pool in this container's "Fixed IP address" setting.
   </Overview>
   <Category>Network:Other Security:</Category>
-  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <ExtraParams/>
   <WebUI/>
-  <Config Name="Zertifikats-Volume" Target="/certs" Default="/mnt/user/appdata/cf-managed-network-endpoint/certs" Mode="rw" Description="Persistenter Speicher fuer cert.pem/key.pem. NIEMALS loeschen - sonst neuer Fingerprint und die Cloudflare-Netzwerkerkennung bricht." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/cf-managed-network-endpoint" Mode="rw" Description="Holds the key pair (keys/) and the nginx config. NEVER delete it: a new certificate means a new fingerprint and Cloudflare network detection breaks." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Old certificate volume (upgrade only)" Target="/certs" Default="" Mode="ro" Description="Only when upgrading from a version before 1.0.0: your old .../certs folder, read once to take over the certificate. Remove afterwards." Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User that owns the key pair (nobody)" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group for the key pair (users)" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="UMASK" Target="UMASK" Default="002" Mode="" Description="Permissions mask for new files" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="TZ" Target="TZ" Default="Etc/UTC" Mode="" Description="Time zone for the log, e.g. Europe/Berlin" Type="Variable" Display="advanced" Required="false" Mask="false"/>
 </Container>

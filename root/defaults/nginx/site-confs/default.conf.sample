@@ -1,0 +1,19 @@
+## Version 2026/10/03 - cf-managed-network-endpoint
+# Copied to /config/nginx/site-confs/default.conf on first start; edit that
+# copy. Only the TLS handshake matters to Cloudflare, the answer is irrelevant.
+
+server {
+    listen 6443 ssl default_server;
+    listen [::]:6443 ssl default_server;
+
+    server_name managed-network.internal;
+
+    ssl_certificate     /config/keys/cert.crt;
+    ssl_certificate_key /config/keys/cert.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    location / {
+        default_type text/plain;
+        return 200 "cf-managed-network-endpoint\n";
+    }
+}
