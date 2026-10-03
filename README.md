@@ -1,125 +1,157 @@
 # cf-managed-network-endpoint
 
-TLS-Endpunkt für **Cloudflare Zero Trust "Managed Networks"**.
+TLS endpoint for **Cloudflare Zero Trust "Managed Networks"**.
 
-Der Container liefert auf Port **6443** ein selbstsigniertes TLS-Zertifikat aus.
-Der Cloudflare-WARP-Client (Cloudflare One Client) verbindet sich dorthin und
-vergleicht den SHA-256-Fingerprint des Zertifikats, um zu erkennen, ob sich das
-Gerät im Heimnetz befindet. Der Container hat **keine Anwendungslogik** — er ist
-eine reine Identitäts-Bake; die HTTP-Antwort (`200`, plain text) ist irrelevant,
-es zählt nur der TLS-Handshake.
+The container serves a self-signed TLS certificate on port **6443**. The
+Cloudflare WARP client (Cloudflare One client) connects to it and compares the
+certificate's SHA-256 fingerprint to detect whether a device is on your home
+network. There is no application logic: the HTTP answer (`200`, plain text)
+does not matter, only the TLS handshake does.
 
-## ⚠️ Fingerprint-Stabilität (wichtigster Punkt)
+Built on [linuxserver.io's `baseimage-alpine-nginx`](https://github.com/linuxserver/docker-baseimage-alpine-nginx)
+(s6-overlay, non-root `abc` user, docker mods).
 
-Die Netzwerkerkennung bricht **stillschweigend**, sobald sich der Fingerprint
-ändert. Deshalb:
+## ⚠️ Fingerprint stability (the important part)
 
-- Das Zertifikat wird **nicht** ins Image gebacken und **nicht** bei jedem
-  Start neu erzeugt.
-- Beim Start prüft das Entrypoint-Script, ob unter `/certs/` bereits
-  `cert.pem` und `key.pem` liegen. Wenn ja → verwenden. Wenn nein → **einmalig**
-  erzeugen (RSA 2048, 3650 Tage, `CN=managed-network.internal`) und dort
-  ablegen.
-- `/certs` muss ein **persistentes Volume** sein. Solange es erhalten bleibt,
-  überlebt der Fingerprint Container-Neustarts, Image-Rebuilds und Updates.
-- **Das Volume niemals löschen.** Sonst entsteht beim nächsten Start ein neues
-  Zertifikat mit neuem Fingerprint, und der neue Wert muss in Cloudflare
-  nachgetragen werden. Am besten den Appdata-Ordner ins Backup aufnehmen.
-- Liegt im Volume nur *eine* der beiden Dateien, bricht der Container mit
-  Fehler ab, statt still ein neues Zertifikat zu erzeugen.
+Network detection breaks **silently** when the fingerprint changes. Therefore:
 
-## Fingerprint auslesen
+- The certificate is **not** baked into the image and **not** regenerated at
+  every start.
+- On start, an init step looks for `cert.crt` and `cert.key` in `/config/keys`.
+  If both exist, they are used. If neither exists, a pair is created **once**
+  (RSA 2048, 3650 days, `CN=managed-network.internal`).
+- `/config` must be a **persistent volume**. As long as it survives, the
+  fingerprint survives restarts, image rebuilds and updates.
+- **Never delete the volume.** The next start would create a new certificate
+  with a new fingerprint, and Cloudflare would need the new value. Include the
+  appdata folder in your backups.
+- If only *one* of the two files exists, the container aborts with an error
+  instead of silently creating a new pair.
 
-**1. Container-Log (einfachster Weg):** Bei *jedem* Start schreibt der
-Container den Fingerprint gut sichtbar ins Log — in der Unraid-Oberfläche:
-Container-Icon → *Logs*.
+## Parameters
+
+| Parameter | Function |
+| --- | --- |
+| `-p 6443` | TLS port. With a custom VLAN interface the container listens on its own IP and no port mapping is needed. |
+| `-e PUID=1000` | User ID that owns the key pair. |
+| `-e PGID=1000` | Group ID that owns the key pair. |
+| `-e UMASK=022` | Permissions mask for new files (optional). |
+| `-e TZ=Etc/UTC` | Time zone for the log, see the [list of tz names](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List) (optional). |
+| `-v /config` | Key pair in `keys/` (`cert.crt`, `cert.key`) and nginx config in `nginx/`. **Never delete.** |
+
+The nginx site is `/config/nginx/site-confs/default.conf`; edit it there to
+change the answer or the TLS settings.
+
+## Reading the fingerprint
+
+**1. Container log (easiest):** every start prints it prominently. In Unraid:
+container icon → *Logs*.
 
 ```
 ==================================================================
- SHA-256-Fingerprint des TLS-Zertifikats
+ SHA-256 fingerprint of the TLS certificate
 
    AB:CD:...
 
- Fuer Cloudflare Zero Trust (Managed Networks, ohne Doppelpunkte):
+ For Cloudflare Zero Trust (managed networks, without colons):
 
    abcd...
 ==================================================================
 ```
 
-**2. Manuell im laufenden Container:**
+**2. In the running container:**
 
 ```sh
 docker exec cf-managed-network-endpoint \
-  openssl x509 -in /certs/cert.pem -noout -fingerprint -sha256
+  openssl x509 -in /config/keys/cert.crt -noout -fingerprint -sha256
 ```
 
-**3. Remote über das Netz:**
+**3. Over the network:**
 
 ```sh
-openssl s_client -connect <STATISCHE-IP>:6443 </dev/null 2>/dev/null \
+openssl s_client -connect <STATIC-IP>:6443 </dev/null 2>/dev/null \
   | openssl x509 -noout -fingerprint -sha256
 ```
 
-Cloudflare erwartet den Wert **ohne Doppelpunkte** (das Log gibt beide
-Formate aus).
+Cloudflare expects the value **without colons** (the log prints both).
 
-## Deployment auf Unraid
+## Deployment on Unraid
 
-Zielumgebung (Werte an dein eigenes Netzwerk anpassen):
+Target environment (adapt to your network):
 
-| Parameter          | Wert                                        |
-| ------------------ | ------------------------------------------- |
-| Netzwerk           | eigenes VLAN, Subnetz `<SUBNETZ>` (z. B. `10.0.0.0/24`) |
-| Statische IP       | `<STATISCHE-IP>` (außerhalb des DHCP-Pools) |
-| Gateway            | `<GATEWAY>`                                 |
-| Docker-Netzwerk    | Custom-VLAN-Interface `br0.<VLAN-ID>` (nicht bridge) |
-| Port               | `6443` (TLS)                                |
-| Volume             | `/mnt/user/appdata/cf-managed-network-endpoint/certs` → `/certs` |
+| Parameter | Value |
+| --- | --- |
+| Network | own VLAN, subnet `<SUBNET>` (e.g. `10.0.0.0/24`) |
+| Static IP | `<STATIC-IP>` (outside the DHCP pool) |
+| Gateway | `<GATEWAY>` |
+| Docker network | custom VLAN interface `br0.<VLAN-ID>` (not bridge) |
+| Port | `6443` (TLS) |
+| Config | `/mnt/user/appdata/cf-managed-network-endpoint` → `/config` |
 
-Beim Custom-VLAN-Interface lauscht der Container direkt unter seiner eigenen
-IP — ein Port-Mapping ist nicht nötig.
+**Option A — Unraid template:** copy
+[unraid/cf-managed-network-endpoint.xml](unraid/cf-managed-network-endpoint.xml)
+to `/boot/config/plugins/dockerMan/templates-user/`, then *Add Container* →
+choose the template and set the static IP under "Fixed IP address". Unraid
+manages restarts itself; don't add `--restart` to Extra Parameters.
 
-**Variante A — Unraid-Template:** [unraid/cf-managed-network-endpoint.xml](unraid/cf-managed-network-endpoint.xml)
-nach `/boot/config/plugins/dockerMan/templates-user/` kopieren, dann in der
-Unraid-UI *Add Container* → Template auswählen und die feste IP unter
-"Fixed IP address" setzen.
-
-**Variante B — docker run:**
+**Option B — docker run:**
 
 ```sh
 docker run -d \
   --name cf-managed-network-endpoint \
   --network br0.<VLAN-ID> \
-  --ip <STATISCHE-IP> \
-  -v /mnt/user/appdata/cf-managed-network-endpoint/certs:/certs \
+  --ip <STATIC-IP> \
+  -e PUID=99 -e PGID=100 -e UMASK=002 \
+  -v /mnt/user/appdata/cf-managed-network-endpoint:/config \
   --restart unless-stopped \
   ghcr.io/tom-joad/cf-managed-network-endpoint:latest
 ```
 
-## Cloudflare Zero Trust konfigurieren
+Don't add `--init`: the base image's `/init` (s6-overlay) must be PID 1.
 
-1. Fingerprint aus dem Container-Log kopieren (Format ohne Doppelpunkte).
-2. Zero-Trust-Dashboard → **Settings → WARP Client → Network locations →
+## Upgrading from a version before 1.0.0
+
+Older versions kept the key pair in a `/certs` volume. To keep the fingerprint,
+**mount the old folder at `/certs` as well** (read-only is fine) together with
+the new `/config` for the first start:
+
+```sh
+  -v /mnt/user/appdata/cf-managed-network-endpoint:/config \
+  -v /mnt/user/appdata/cf-managed-network-endpoint/certs:/certs:ro \
+```
+
+If `/config/keys` is empty, the certificate is copied over once and the log
+shows the same fingerprint as before. Compare it with the value in Cloudflare.
+Afterwards `/certs` can be removed. The old folder is never modified.
+
+## Configuring Cloudflare Zero Trust
+
+1. Copy the fingerprint from the container log (format without colons).
+2. Zero Trust dashboard → **Settings → WARP Client → Network locations →
    Managed networks → Add new managed network**.
-3. Typ *TLS*, Host `<STATISCHE-IP>`, Port `6443`, SHA-256-Fingerprint eintragen.
-4. In den WARP-**Device-Profilen** das Managed Network als Bedingung verwenden
-   (z. B. eigenes Profil, wenn Netzwerk = Heimnetz erkannt).
+3. Type *TLS*, host `<STATIC-IP>`, port `6443`, enter the SHA-256 fingerprint.
+4. Use the managed network as a condition in your WARP **device profiles**
+   (for example a profile for "home network detected").
 
-Der WARP-Client prüft die Erreichbarkeit bei jedem Netzwerkwechsel. Erwartetes
-Verhalten testen: Gerät ins Heimnetz bringen → im WARP-Client wechselt das
-Geräteprofil.
+The WARP client checks reachability on every network change. To test: bring a
+device onto the home network and watch the device profile switch.
 
-## Entwicklung
+## Development
 
 ```sh
 docker build -t cf-managed-network-endpoint .
-docker run -d --name cfmne-test -p 6443:6443 -v cfmne-certs:/certs cf-managed-network-endpoint
-curl -k https://localhost:6443/          # -> 200 "cf-managed-network-endpoint"
-docker logs cfmne-test                   # Fingerprint
+tests/smoke.sh cf-managed-network-endpoint   # health, certificate, fingerprint stability
+docker run -d --name cfmne-test -p 6443:6443 -v cfmne-config:/config cf-managed-network-endpoint
+curl -k https://localhost:6443/              # -> 200 "cf-managed-network-endpoint"
+docker logs cfmne-test                       # fingerprint
 ```
 
 CI ([.github/workflows/build-and-push.yml](.github/workflows/build-and-push.yml))
-baut bei jedem Push auf `main` sowie bei Tags `v*` ein Multi-Arch-Image
-(`linux/amd64`, `linux/arm64`) und pusht es nach
-`ghcr.io/tom-joad/cf-managed-network-endpoint` (Tags: `latest`, `sha-…`,
-Semver bei Tags).
+runs the smoke test and `gitleaks` on every push and pull request. For `v*`
+tags it builds a multi-arch image (`linux/amd64`, `linux/arm64`) with SBOM and
+provenance, scans it with Trivy, signs it with cosign and pushes it to
+`ghcr.io/tom-joad/cf-managed-network-endpoint` (tags: `latest`, `sha-…`,
+semver).
+
+See [SECURITY.md](SECURITY.md) to report a vulnerability and
+[CHANGELOG.md](CHANGELOG.md) for changes.

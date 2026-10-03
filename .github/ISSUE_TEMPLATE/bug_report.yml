@@ -1,0 +1,37 @@
+name: Bug report
+description: Something doesn't work as described.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never post your static IP, subnet, VLAN or the certificate fingerprint
+        unredacted.** An issue is public, and the fingerprint identifies your
+        managed network. Log lines and settings are almost always enough.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The image tag you run (for example `1.0.0`).
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log lines
+      description: Redact the fingerprint and any addresses first.
+      render: text
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: |
+        How you run it (Unraid, docker run, compose), the network mode, and
+        the settings you changed.

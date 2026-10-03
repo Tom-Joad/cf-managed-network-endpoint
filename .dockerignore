@@ -1,4 +1,10 @@
 .git
-.github
-unraid
+.gitattributes
+.gitignore
+.github/
+tests/
+unraid/
 README.md
+LICENSE
+SECURITY.md
+CHANGELOG.md
