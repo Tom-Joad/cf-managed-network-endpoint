@@ -5,7 +5,7 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
-## [1.0.0] - Unreleased
+## [1.0.0] - 2026-10-03
 
 ### Changed
 - **Built on linuxserver.io's `baseimage-alpine-nginx`** (s6-overlay, `abc`
