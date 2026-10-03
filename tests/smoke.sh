@@ -14,7 +14,7 @@ fail() { echo "FAIL: $*" >&2; docker logs "$NAME" >&2 || true; exit 1; }
 start() { # extra docker args
     docker rm -f "$NAME" >/dev/null 2>&1 || true
     docker run -d --name "$NAME" -p 127.0.0.1:6443:6443 \
-        -e PUID="$(id -u)" -e PGID="$(id -g)" "$@" "$IMAGE" >/dev/null
+        -e PUID=1000 -e PGID=1000 "$@" "$IMAGE" >/dev/null
     for _ in $(seq 1 60); do
         [[ $(docker inspect -f '{{.State.Health.Status}}' "$NAME") == healthy ]] && return 0
         sleep 2
@@ -39,10 +39,11 @@ FP=$(served_fp)
 [[ -n $FP ]] || fail "no certificate served"
 [[ $(logged_fp) == "$FP" ]] || fail "fingerprint in the log differs from the served one"
 [[ $(curl -fsk https://127.0.0.1:6443/) == cf-managed-network-endpoint ]] || fail "unexpected answer"
-[[ $(stat -c %u "$WORK/config/keys/cert.key") == "$(id -u)" ]] || fail "key not owned by PUID"
+[[ $(stat -c %u "$WORK/config/keys/cert.key") == 1000 ]] || fail "key not owned by PUID"
 [[ $(stat -c %a "$WORK/config/keys/cert.key") == 600 ]] || fail "key is not mode 600"
-docker exec "$NAME" sh -c 'ps -o user,args | grep "[n]ginx: worker"' | grep -qv '^root' \
-    || fail "nginx worker runs as root"
+WORKERS=$(docker exec "$NAME" ps -eo user,args | awk '/nginx: worker/ {print $1}')
+[[ -n $WORKERS ]] || fail "no nginx worker found"
+[[ $WORKERS != *root* ]] || fail "nginx worker runs as root"
 # Only 6443 listens: the base image's default site must be gone.
 if curl -sk --max-time 3 https://127.0.0.1:443/ >/dev/null 2>&1; then fail "443 answers"; fi
 
@@ -61,7 +62,12 @@ start -v "$WORK/config:/config"
 echo "== only one of the two files: the container must not create a new pair"
 docker rm -f "$NAME" >/dev/null
 rm "$WORK/config/keys/cert.crt"
-if start -v "$WORK/config:/config" 2>/dev/null; then fail "started with half a key pair"; fi
+docker run -d --name "$NAME" -e PUID=1000 -e PGID=1000 -v "$WORK/config:/config" "$IMAGE" >/dev/null
+for _ in $(seq 1 60); do
+    [[ $(docker inspect -f '{{.State.Status}}' "$NAME") == running ]] || break
+    sleep 2
+done
+[[ $(docker inspect -f '{{.State.Status}}' "$NAME") != running ]] || fail "started with half a key pair"
 docker logs "$NAME" 2>&1 | grep -q 'holds only one of' || fail "no error about the missing file"
 [[ ! -f $WORK/config/keys/cert.crt ]] || fail "a new certificate was created"
 

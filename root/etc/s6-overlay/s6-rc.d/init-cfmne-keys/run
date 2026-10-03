@@ -51,3 +51,10 @@ echo " For Cloudflare Zero Trust (managed networks, without colons):"
 echo ""
 echo "   ${FP_PLAIN}"
 echo "=================================================================="
+
+# A host without IPv6 can't open the [::] socket and nginx would not start.
+SITE=/config/nginx/site-confs/default.conf
+if [[ ! -e /proc/net/if_inet6 && -f ${SITE} ]] && grep -q 'listen \[::\]' "${SITE}"; then
+    echo "No IPv6 on this host: removing the [::] listener from ${SITE}"
+    sed -i '/listen \[::\]/d' "${SITE}"
+fi

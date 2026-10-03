@@ -16,7 +16,15 @@ RUN apk add --no-cache openssl curl
 
 # s6 services and the nginx site (see root/).
 COPY root/ /
-RUN chmod +x /etc/s6-overlay/s6-rc.d/init-cfmne-keys/run
+# The base image also starts PHP-FPM and cron; this container needs neither.
+RUN chmod +x /etc/s6-overlay/s6-rc.d/init-cfmne-keys/run \
+ && rm -f /etc/s6-overlay/s6-rc.d/user/contents.d/svc-php-fpm \
+          /etc/s6-overlay/s6-rc.d/user/contents.d/svc-cron
+
+# Stop the container when an init step fails (the default keeps it running).
+# The key check relies on it: half a key pair must end in an error, not in a
+# container that looks alive and serves nothing.
+ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
 
 EXPOSE 6443
 
