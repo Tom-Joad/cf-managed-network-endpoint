@@ -72,7 +72,10 @@ for _ in $(seq 1 60); do
     sleep 2
 done
 [[ $(docker inspect -f '{{.State.Status}}' "$NAME") != running ]] || fail "started with half a key pair"
-docker logs "$NAME" 2>&1 | grep -q 'holds only one of' || fail "no error about the missing file"
+# Read the log first: with pipefail, `docker logs | grep -q` fails at random
+# when grep exits on the first match and docker logs gets SIGPIPE.
+LOG=$(docker logs "$NAME" 2>&1)
+grep -q 'holds only one of' <<<"$LOG" || fail "no error about the missing file"
 [[ ! -f $WORK/config/keys/cert.crt ]] || fail "a new certificate was created"
 
 echo "== takeover of a pre-1.0 /certs volume"
