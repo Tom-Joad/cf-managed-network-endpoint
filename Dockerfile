@@ -1,4 +1,4 @@
-# linuxserver.io's Alpine 3.23 + nginx base: s6-overlay, PUID/PGID/UMASK/TZ,
+# linuxserver.io's Alpine 3.24 + nginx base: s6-overlay, PUID/PGID/UMASK/TZ,
 # the abc user and docker mods, as in every linuxserver.io container.
 # Pinned by digest (a multi-arch index); Dependabot proposes new digests.
 FROM ghcr.io/linuxserver/baseimage-alpine-nginx:3.24@sha256:f9380a718d214b10fddfcedf7058c4bbba85ecc1a03c9d98eb4676925d77e7af
