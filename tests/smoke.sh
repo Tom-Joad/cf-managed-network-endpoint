@@ -5,6 +5,10 @@
 set -euo pipefail
 
 IMAGE=${1:?usage: smoke.sh <image>}
+# Files in the mounted /config belong to PUID/PGID. Use the caller's IDs so the
+# test can edit and clean them up; root can't be PUID (abc must not be root).
+PUID=$(id -u); PGID=$(id -g)
+[[ $PUID != 0 ]] || { PUID=1000; PGID=1000; }
 WORK=$(mktemp -d)
 NAME=cfmne-smoke-$$
 trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
@@ -14,7 +18,7 @@ fail() { echo "FAIL: $*" >&2; docker logs "$NAME" >&2 || true; exit 1; }
 start() { # extra docker args
     docker rm -f "$NAME" >/dev/null 2>&1 || true
     docker run -d --name "$NAME" -p 127.0.0.1:6443:6443 \
-        -e PUID=1000 -e PGID=1000 "$@" "$IMAGE" >/dev/null
+        -e PUID="$PUID" -e PGID="$PGID" "$@" "$IMAGE" >/dev/null
     for _ in $(seq 1 60); do
         [[ $(docker inspect -f '{{.State.Health.Status}}' "$NAME") == healthy ]] && return 0
         sleep 2
@@ -39,7 +43,7 @@ FP=$(served_fp)
 [[ -n $FP ]] || fail "no certificate served"
 [[ $(logged_fp) == "$FP" ]] || fail "fingerprint in the log differs from the served one"
 [[ $(curl -fsk https://127.0.0.1:6443/) == cf-managed-network-endpoint ]] || fail "unexpected answer"
-[[ $(stat -c %u "$WORK/config/keys/cert.key") == 1000 ]] || fail "key not owned by PUID"
+[[ $(stat -c %u "$WORK/config/keys/cert.key") == "$PUID" ]] || fail "key not owned by PUID"
 [[ $(stat -c %a "$WORK/config/keys/cert.key") == 600 ]] || fail "key is not mode 600"
 WORKERS=$(docker exec "$NAME" ps -eo user,args | awk '/nginx: worker/ {print $1}')
 [[ -n $WORKERS ]] || fail "no nginx worker found"
@@ -62,7 +66,7 @@ start -v "$WORK/config:/config"
 echo "== only one of the two files: the container must not create a new pair"
 docker rm -f "$NAME" >/dev/null
 rm "$WORK/config/keys/cert.crt"
-docker run -d --name "$NAME" -e PUID=1000 -e PGID=1000 -v "$WORK/config:/config" "$IMAGE" >/dev/null
+docker run -d --name "$NAME" -e PUID="$PUID" -e PGID="$PGID" -v "$WORK/config:/config" "$IMAGE" >/dev/null
 for _ in $(seq 1 60); do
     [[ $(docker inspect -f '{{.State.Status}}' "$NAME") == running ]] || break
     sleep 2
