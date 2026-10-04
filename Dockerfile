@@ -11,8 +11,10 @@ LABEL org.opencontainers.image.source="https://github.com/Tom-Joad/cf-managed-ne
       org.opencontainers.image.licenses="MIT"
 
 # openssl: certificate and fingerprint; curl: health check. Don't rely on the
-# base image shipping both.
-RUN apk add --no-cache openssl curl
+# base image shipping both. The upgrade picks up Alpine security fixes newer
+# than the pinned base image (e.g. pcre2 for nginx).
+RUN apk upgrade --no-cache \
+ && apk add --no-cache openssl curl
 
 # s6 services and the nginx site (see root/).
 COPY root/ /
