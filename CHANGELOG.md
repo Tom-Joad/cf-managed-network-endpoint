@@ -5,7 +5,7 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
-## [Unreleased]
+## [1.0.2] - 2026-10-04
 
 ### Security
 - The image installs Alpine's security fixes at build time instead of
@@ -45,5 +45,6 @@ you have in Cloudflare.
 - Images with SBOM and provenance, scanned with Trivy, signed with cosign.
 - `SECURITY.md`, issue templates, Dependabot for Docker and GitHub Actions.
 
+[1.0.2]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Tom-Joad/cf-managed-network-endpoint/releases/tag/v1.0.0
