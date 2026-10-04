@@ -41,6 +41,9 @@ echo "== first start: certificate is created"
 start -v "$WORK/config:/config"
 FP=$(served_fp)
 [[ -n $FP ]] || fail "no certificate served"
+BANNER=$(docker logs "$NAME" 2>&1)
+grep -q 'BASED ON IMAGES FROM LINUXSERVER\.IO' <<<"$BANNER" || fail "the start banner is not ours"
+if grep -q 'Based on images from linuxserver\.io' <<<"$BANNER"; then fail "the base image's banner is still shown"; fi
 [[ $(logged_fp) == "$FP" ]] || fail "fingerprint in the log differs from the served one"
 [[ $(curl -fsk https://127.0.0.1:6443/) == cf-managed-network-endpoint ]] || fail "unexpected answer"
 [[ $(stat -c %u "$WORK/config/keys/cert.key") == "$PUID" ]] || fail "key not owned by PUID"

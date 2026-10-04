@@ -5,6 +5,12 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [Unreleased]
+
+### Changed
+- The container log starts with a TomJoad Images banner instead of the
+  base image's "custom build" one.
+
 ## [1.0.0] - 2026-10-03
 
 ### Changed
