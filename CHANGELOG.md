@@ -5,6 +5,14 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [Unreleased]
+
+### Security
+- The image installs Alpine's security fixes at build time instead of
+  waiting for a new base image. 1.0.1 shipped `pcre2` 10.48 and
+  `apache2-utils` 2.4.68 with eight known high-severity issues; the build
+  now gets the fixed versions (10.49 and 2.4.69 or newer).
+
 ## [1.0.1] - 2026-10-04
 
 ### Changed
