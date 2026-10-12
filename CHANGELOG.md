@@ -5,6 +5,12 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [1.0.3] - 2026-10-12
+
+### Changed
+- The image is built on the current `baseimage-alpine-nginx` 3.24 release,
+  with the latest Alpine package updates.
+
 ## [1.0.2] - 2026-10-04
 
 ### Security
