@@ -5,6 +5,12 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [1.0.4] - 2026-10-17
+
+### Changed
+- The image is built on the current `baseimage-alpine-nginx` 3.24 release,
+  with the latest Alpine package updates.
+
 ## [1.0.3] - 2026-10-12
 
 ### Changed
@@ -51,6 +57,7 @@ you have in Cloudflare.
 - Images with SBOM and provenance, scanned with Trivy, signed with cosign.
 - `SECURITY.md`, issue templates, Dependabot for Docker and GitHub Actions.
 
+[1.0.4]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.3...v1.0.4
 [1.0.2]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Tom-Joad/cf-managed-network-endpoint/releases/tag/v1.0.0
