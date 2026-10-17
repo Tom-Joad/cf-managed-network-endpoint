@@ -1,7 +1,7 @@
 # linuxserver.io's Alpine 3.24 + nginx base: s6-overlay, PUID/PGID/UMASK/TZ,
 # the abc user and docker mods, as in every linuxserver.io container.
 # Pinned by digest (a multi-arch index); Dependabot proposes new digests.
-FROM ghcr.io/linuxserver/baseimage-alpine-nginx:3.24@sha256:c4d3547614a541e29dee89c9e9d981de2602d7ec9159ada595dc65f3df8d1fe2
+FROM ghcr.io/linuxserver/baseimage-alpine-nginx:3.24@sha256:bd4a0c6a82de98ffc150518791904c9b31b2873dd4b92d57ca8c089d2b08968f
 
 # image.source is what makes a GHCR package inherit the repository's
 # visibility instead of staying private on its own.
