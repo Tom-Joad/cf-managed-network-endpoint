@@ -8,6 +8,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/Tom-Joad/cf-managed-network-endpoint</Support>
   <Project>https://github.com/Tom-Joad/cf-managed-network-endpoint</Project>
+  <Icon>https://raw.githubusercontent.com/Tom-Joad/unraid-templates/main/icons/cf-managed-network-endpoint.png</Icon>
   <TemplateURL>https://raw.githubusercontent.com/Tom-Joad/cf-managed-network-endpoint/main/unraid/cf-managed-network-endpoint.xml</TemplateURL>
   <Overview>
     TLS endpoint for Cloudflare Zero Trust "Managed Networks". Serves a self-signed
