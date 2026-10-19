@@ -11,6 +11,8 @@ CN="managed-network.internal"
 # Where versions before 1.0.0 kept the pair (a volume mounted at /certs).
 OLD=/certs
 
+echo "cf-managed-network-endpoint ${CFMNE_VERSION:-dev} starting"
+
 mkdir -p "${KEYS}"
 
 if [[ -f ${CERT} && -f ${KEY} ]]; then

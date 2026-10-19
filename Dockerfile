@@ -10,6 +10,10 @@ LABEL org.opencontainers.image.source="https://github.com/Tom-Joad/cf-managed-ne
       org.opencontainers.image.description="TLS endpoint for Cloudflare Zero Trust managed networks: serves a stable self-signed certificate on port 6443" \
       org.opencontainers.image.licenses="MIT"
 
+# The release, passed in by the build workflow; the init step logs it.
+ARG VERSION=dev
+ENV CFMNE_VERSION="${VERSION}"
+
 # openssl: certificate and fingerprint; curl: health check. Don't rely on the
 # base image shipping both. The upgrade picks up Alpine security fixes newer
 # than the pinned base image (e.g. pcre2 for nginx).
