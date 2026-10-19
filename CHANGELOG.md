@@ -5,6 +5,16 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [1.0.5] - 2026-10-19
+
+### Changed
+- The log names the version at start
+  (`cf-managed-network-endpoint 1.0.5 starting`).
+- The Unraid template and the `docker run` example add
+  `--security-opt no-new-privileges`. Existing containers keep working
+  without it; add it under Extra Parameters if you like.
+- A `docker-compose.yml` is in the repository.
+
 ## [1.0.4] - 2026-10-17
 
 ### Changed

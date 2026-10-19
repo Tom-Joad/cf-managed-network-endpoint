@@ -1,0 +1,24 @@
+# TLS endpoint for Cloudflare Zero Trust managed network detection.
+# docker compose up -d; the fingerprint is in the log (docker logs cf-managed-network-endpoint).
+# Keep ./config: a new key pair means a new fingerprint in Cloudflare.
+services:
+  cf-managed-network-endpoint:
+    image: ghcr.io/tom-joad/cf-managed-network-endpoint:latest
+    container_name: cf-managed-network-endpoint
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      UMASK: ${UMASK:-022}
+      TZ: ${TZ:-Etc/UTC}
+    ports:
+      - "6443:6443"
+    volumes:
+      - ./config:/config
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

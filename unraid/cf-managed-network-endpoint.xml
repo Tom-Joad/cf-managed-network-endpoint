@@ -30,7 +30,7 @@
     IP outside the DHCP pool in this container's "Fixed IP address" setting.
   </Overview>
   <Category>Network:Other Security:</Category>
-  <ExtraParams/>
+  <ExtraParams>--security-opt no-new-privileges</ExtraParams>
   <WebUI/>
   <Config Name="Config" Target="/config" Default="/mnt/user/appdata/cf-managed-network-endpoint" Mode="rw" Description="Holds the key pair (keys/) and the nginx config. NEVER delete it: a new certificate means a new fingerprint and Cloudflare network detection breaks." Type="Path" Display="always" Required="true" Mask="false"/>
   <Config Name="Old certificate volume (upgrade only)" Target="/certs" Default="" Mode="ro" Description="Only when upgrading from a version before 1.0.0: your old .../certs folder, read once to take over the certificate. Remove afterwards." Type="Path" Display="advanced" Required="false" Mask="false"/>

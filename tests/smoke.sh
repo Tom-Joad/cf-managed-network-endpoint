@@ -43,6 +43,7 @@ FP=$(served_fp)
 [[ -n $FP ]] || fail "no certificate served"
 BANNER=$(docker logs "$NAME" 2>&1)
 grep -q 'BASED ON IMAGES FROM LINUXSERVER\.IO' <<<"$BANNER" || fail "the start banner is not ours"
+grep -qE '^cf-managed-network-endpoint [^ ]+ starting$' <<<"$BANNER" || fail "no start line with the version"
 if grep -q 'Based on images from linuxserver\.io' <<<"$BANNER"; then fail "the base image's banner is still shown"; fi
 [[ $(logged_fp) == "$FP" ]] || fail "fingerprint in the log differs from the served one"
 [[ $(curl -fsk https://127.0.0.1:6443/) == cf-managed-network-endpoint ]] || fail "unexpected answer"

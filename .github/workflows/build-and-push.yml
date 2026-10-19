@@ -96,6 +96,8 @@ jobs:
           push: true
           provenance: mode=max
           sbom: true
+          # The version the init step logs at start.
+          build-args: VERSION=${{ steps.meta.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 

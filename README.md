@@ -103,6 +103,7 @@ docker run -d \
   --ip <STATIC-IP> \
   -e PUID=99 -e PGID=100 -e UMASK=002 \
   -v /mnt/user/appdata/cf-managed-network-endpoint:/config \
+  --security-opt no-new-privileges \
   --restart unless-stopped \
   ghcr.io/tom-joad/cf-managed-network-endpoint:latest
 ```
