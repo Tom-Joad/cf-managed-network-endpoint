@@ -16,13 +16,16 @@ ENV CFMNE_VERSION="${VERSION}"
 
 # openssl: certificate and fingerprint; curl: health check. Don't rely on the
 # base image shipping both. The upgrade picks up Alpine security fixes newer
-# than the pinned base image (e.g. pcre2 for nginx).
+# than the pinned base image (e.g. pcre2 for nginx). The site is plain nginx,
+# so the base image's PHP goes: no PHP flaw can reach this container.
 RUN apk upgrade --no-cache \
- && apk add --no-cache openssl curl
+ && apk add --no-cache openssl curl \
+ && apk del --no-cache $(grep '^php' /etc/apk/world) $(apk info | grep '^php')
 
 # s6 services and the nginx site (see root/).
 COPY root/ /
-# The base image also starts PHP-FPM and cron; this container needs neither.
+# The base image also starts PHP-FPM and cron; this container needs neither
+# (PHP itself is removed above).
 RUN chmod +x /etc/s6-overlay/s6-rc.d/init-cfmne-keys/run \
  && rm -f /etc/s6-overlay/s6-rc.d/user/contents.d/svc-php-fpm \
           /etc/s6-overlay/s6-rc.d/user/contents.d/svc-cron

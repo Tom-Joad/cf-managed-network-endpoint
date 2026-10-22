@@ -5,6 +5,21 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [1.0.6] - 2026-10-22
+
+### Security
+- PHP is no longer in the image. The base image ships PHP 8.5 with PHP-FPM,
+  but this container never ran it: the PHP-FPM service was already switched
+  off and the site is plain nginx. The PHP security release of 2026-10-21
+  (remote code execution) therefore never applied here; removing PHP just
+  means no future PHP flaw can either.
+- TLS session tickets are off (`ssl_session_tickets off`). nginx 1.30.6
+  fixes a session forgery with tickets (CVE-2026-97629), and Alpine 3.24
+  still ships 1.30.4. The setting is part of the image, not of `/config`,
+  so existing installations get it without changes. The other fixes in
+  nginx 1.30.6 concern features this container doesn't use (`alias` with
+  `rewrite`, variables, HTTP/3, AIO).
+
 ## [1.0.5] - 2026-10-19
 
 ### Changed
@@ -67,7 +82,10 @@ you have in Cloudflare.
 - Images with SBOM and provenance, scanned with Trivy, signed with cosign.
 - `SECURITY.md`, issue templates, Dependabot for Docker and GitHub Actions.
 
+[1.0.6]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.5...v1.0.6
+[1.0.5]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Tom-Joad/cf-managed-network-endpoint/releases/tag/v1.0.0
