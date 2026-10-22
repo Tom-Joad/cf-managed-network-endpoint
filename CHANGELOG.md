@@ -5,6 +5,16 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [1.0.7] - 2026-10-22
+
+### Security
+- nginx 1.30.6, now in Alpine 3.24. It fixes CVE-2026-97629 (session
+  forgery with TLS session tickets), CVE-2026-93479, CVE-2026-95101,
+  CVE-2026-97205, CVE-2026-15176 and CVE-2026-90439. 1.0.6 already had
+  session tickets off and doesn't use the features the others need; the
+  tickets stay off.
+- musl 1.2.6-r3 (CVE-2026-107891).
+
 ## [1.0.6] - 2026-10-22
 
 ### Security
@@ -82,6 +92,7 @@ you have in Cloudflare.
 - Images with SBOM and provenance, scanned with Trivy, signed with cosign.
 - `SECURITY.md`, issue templates, Dependabot for Docker and GitHub Actions.
 
+[1.0.7]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.3...v1.0.4
