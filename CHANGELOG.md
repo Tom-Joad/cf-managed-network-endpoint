@@ -5,6 +5,13 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [1.0.9] - 2026-10-26
+
+### Security
+- Security updates of the distribution packages, picked up by rebuilding the image:
+  - `curl` 8.23.0-r0 (CVE-2026-92392)
+  - `libcurl` 8.23.0-r0 (CVE-2026-92392)
+
 ## [1.0.8] - 2026-10-24
 
 ### Changed
@@ -98,6 +105,7 @@ you have in Cloudflare.
 - Images with SBOM and provenance, scanned with Trivy, signed with cosign.
 - `SECURITY.md`, issue templates, Dependabot for Docker and GitHub Actions.
 
+[1.0.9]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.5...v1.0.6
