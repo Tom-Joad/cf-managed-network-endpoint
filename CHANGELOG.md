@@ -5,6 +5,12 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [1.0.11] - 2026-11-03
+
+### Security
+- Security updates of the distribution packages, picked up by rebuilding the image:
+  - `libexpat` 2.10.0-r0 (CVE-2026-117610, CVE-2026-118370)
+
 ## [1.0.10] - 2026-10-31
 
 ### Changed
@@ -111,6 +117,7 @@ you have in Cloudflare.
 - Images with SBOM and provenance, scanned with Trivy, signed with cosign.
 - `SECURITY.md`, issue templates, Dependabot for Docker and GitHub Actions.
 
+[1.0.11]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.10...v1.0.11
 [1.0.10]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.7...v1.0.8
