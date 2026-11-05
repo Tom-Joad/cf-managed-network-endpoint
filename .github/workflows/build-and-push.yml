@@ -36,6 +36,12 @@ jobs:
         with:
           fetch-depth: 0 # gitleaks needs history to scan past commits
 
+      - name: Lint shell scripts
+        run: shellcheck root/etc/s6-overlay/s6-rc.d/*/run tests/smoke.sh
+
+      - name: Check the Unraid template
+        run: python3 -c "import xml.dom.minidom as m; m.parse('unraid/cf-managed-network-endpoint.xml')"
+
       - name: Build the image
         run: docker build --tag cfmne:test .
 

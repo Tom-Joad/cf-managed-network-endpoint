@@ -1,1 +1,4 @@
 *.pem
+
+# Python byte code (from running scripts in .github/ locally)
+__pycache__/
