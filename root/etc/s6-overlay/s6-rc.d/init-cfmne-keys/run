@@ -62,8 +62,7 @@ chmod 600 "${KEY}" || die "could not set the mode of ${KEY}"
 chmod 644 "${CERT}" || die "could not set the mode of ${CERT}"
 lsiown -R abc:abc "${KEYS}" || die "could not change the owner of ${KEYS}"
 
-FP_COLON=$(openssl x509 -in "${CERT}" -noout -fingerprint -sha256 | cut -d= -f2) \
-    || die "could not read the fingerprint of ${CERT}"
+FP_COLON=$(openssl x509 -in "${CERT}" -noout -fingerprint -sha256 | cut -d= -f2)
 [[ -n ${FP_COLON} ]] || die "could not read the fingerprint of ${CERT}"
 FP_PLAIN=$(printf '%s' "${FP_COLON}" | tr -d ':' | tr 'A-F' 'a-f')
 

@@ -44,6 +44,14 @@ wait_healthy() {
     fail "container did not become healthy"
 }
 
+# Waits until the container has stopped (the start is expected to fail).
+wait_exited() {
+    for _ in $(seq 1 60); do
+        [[ $(docker inspect -f '{{.State.Status}}' "$NAME") == running ]] || return 0
+        sleep 2
+    done
+}
+
 logged_fp() {
     docker logs "$NAME" 2>&1 | grep -E '^   ([0-9A-F]{2}:){31}[0-9A-F]{2}$' | tail -n1 | tr -d ' ' || true
 }
@@ -88,10 +96,7 @@ docker rm -f "$NAME" >/dev/null
 rm "$WORK/config/keys/cert.crt"
 docker run -d --name "$NAME" -e PUID="$PUID" -e PGID="$PGID" -v "$WORK/config:/config" "$IMAGE" >/dev/null \
     || fail "docker run failed"
-for _ in $(seq 1 60); do
-    [[ $(docker inspect -f '{{.State.Status}}' "$NAME") == running ]] || break
-    sleep 2
-done
+wait_exited
 [[ $(docker inspect -f '{{.State.Status}}' "$NAME") != running ]] || fail "started with half a key pair"
 # Read the log first: with pipefail, `docker logs | grep -q` fails at random
 # when grep exits on the first match and docker logs gets SIGPIPE.
@@ -105,10 +110,7 @@ mkdir -p "$WORK/config3" "$WORK/emptykeys"
 docker run -d --name "$NAME" -e PUID="$PUID" -e PGID="$PGID" \
     -v "$WORK/config3:/config" -v "$WORK/emptykeys:/config/keys:ro" "$IMAGE" >/dev/null \
     || fail "docker run failed"
-for _ in $(seq 1 60); do
-    [[ $(docker inspect -f '{{.State.Status}}' "$NAME") == running ]] || break
-    sleep 2
-done
+wait_exited
 [[ $(docker inspect -f '{{.State.Status}}' "$NAME") != running ]] || fail "started without a key pair"
 in_log 'ERROR: could not create the key pair in /config/keys' || fail "no error from the key step"
 if in_log 'SHA-256 fingerprint of the TLS certificate'; then fail "a fingerprint was printed without a key pair"; fi
