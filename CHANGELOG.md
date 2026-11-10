@@ -5,7 +5,7 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
-## [Unreleased]
+## [1.0.13] - 2026-11-10
 
 ### Fixed
 - nginx now logs errors to the container log (`docker logs`) instead of files
@@ -144,6 +144,7 @@ you have in Cloudflare.
 - Images with SBOM and provenance, scanned with Trivy, signed with cosign.
 - `SECURITY.md`, issue templates, Dependabot for Docker and GitHub Actions.
 
+[1.0.13]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.12...v1.0.13
 [1.0.12]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.11...v1.0.12
 [1.0.11]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.10...v1.0.11
 [1.0.10]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.9...v1.0.10
