@@ -5,6 +5,26 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [Unreleased]
+
+### Fixed
+- nginx now logs to the container log (`docker logs`) instead of files in
+  `/config/log/nginx/` that nothing rotated. The two log files are links to
+  stdout/stderr now; `access.log` and `error.log` of earlier versions are
+  replaced, and any rotated copies next to them (`*.log.1`, `*.gz`) can be
+  deleted.
+- The key step stops with an `ERROR:` line when it can't create or copy the key
+  pair, read-only `/config/keys` for example, instead of printing an empty
+  fingerprint and reporting success.
+- The comment in `session-tickets.conf` no longer names an outdated nginx
+  version or a session cache that isn't configured.
+
+### Changed
+- The smoke test probes port 443 inside the container, fails with a message
+  (and the container log) when the container doesn't come back after a restart,
+  the served certificate can't be read or `docker run` fails, and covers a
+  read-only `/config/keys`.
+
 ## [1.0.12] - 2026-11-07
 
 ### Changed
