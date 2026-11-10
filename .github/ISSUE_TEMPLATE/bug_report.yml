@@ -26,7 +26,9 @@ body:
     id: log
     attributes:
       label: Log lines
-      description: Redact the fingerprint and any addresses first.
+      description: |
+        The `starting` line at the top of the log (version and settings) and
+        the lines around the problem, redacted.
       render: text
   - type: textarea
     id: setup
