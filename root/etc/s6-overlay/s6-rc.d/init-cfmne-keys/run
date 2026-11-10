@@ -13,7 +13,24 @@ OLD=/certs
 
 echo "cf-managed-network-endpoint ${CFMNE_VERSION:-dev} starting"
 
-mkdir -p "${KEYS}"
+# Stop with a clear message when the key pair can't be created or read. Without
+# this the step would go on and report success without a key pair.
+die() {
+    echo "ERROR: $*" >&2
+    exit 1
+}
+
+# nginx logs errors to stderr (the container log), not to files in /config
+# that nothing rotates. The base image's nginx.conf still names the two files,
+# so they become links. The access log is dropped: WARP clients only do the TLS
+# handshake, so it would hold nothing but the health check's request every 30 s.
+# Replaces the files of earlier versions, which can be deleted.
+LOGS=/config/log/nginx
+mkdir -p "${LOGS}" || die "could not create ${LOGS}"
+ln -sfn /dev/null "${LOGS}/access.log" || die "could not link ${LOGS}/access.log to /dev/null"
+ln -sfn /dev/stderr "${LOGS}/error.log" || die "could not link ${LOGS}/error.log to stderr"
+
+mkdir -p "${KEYS}" || die "could not create ${KEYS}"
 
 if [[ -f ${CERT} && -f ${KEY} ]]; then
     echo "Using the existing certificate: ${CERT}"
@@ -24,8 +41,8 @@ elif [[ -f ${CERT} || -f ${KEY} ]]; then
     exit 1
 elif [[ -f ${OLD}/cert.pem && -f ${OLD}/key.pem ]]; then
     echo "Taking over the certificate from ${OLD} (same fingerprint as before)"
-    cp "${OLD}/cert.pem" "${CERT}"
-    cp "${OLD}/key.pem" "${KEY}"
+    cp "${OLD}/cert.pem" "${CERT}" || die "could not copy ${OLD}/cert.pem to ${CERT}"
+    cp "${OLD}/key.pem" "${KEY}" || die "could not copy ${OLD}/key.pem to ${KEY}"
 elif [[ -f ${OLD}/cert.pem || -f ${OLD}/key.pem ]]; then
     echo "ERROR: ${OLD} holds only one of cert.pem/key.pem." >&2
     echo "Check the volume or restore it from backup. No new certificate is" >&2
@@ -34,14 +51,20 @@ elif [[ -f ${OLD}/cert.pem || -f ${OLD}/key.pem ]]; then
 else
     echo "No certificate found: creating one (CN=${CN}, RSA 2048, 3650 days)"
     openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
-        -subj "/CN=${CN}" -keyout "${KEY}" -out "${CERT}"
+        -subj "/CN=${CN}" -keyout "${KEY}" -out "${CERT}" \
+        || die "could not create the key pair in ${KEYS}"
 fi
 
-chmod 600 "${KEY}"
-chmod 644 "${CERT}"
-lsiown -R abc:abc "${KEYS}"
+# The pair must exist now, however it got here (a failed cp or openssl may
+# leave half of it or nothing).
+[[ -s ${CERT} && -s ${KEY} ]] || die "could not create the key pair in ${KEYS}: cert.crt or cert.key is missing or empty"
+
+chmod 600 "${KEY}" || die "could not set the mode of ${KEY}"
+chmod 644 "${CERT}" || die "could not set the mode of ${CERT}"
+lsiown -R abc:abc "${KEYS}" || die "could not change the owner of ${KEYS}"
 
 FP_COLON=$(openssl x509 -in "${CERT}" -noout -fingerprint -sha256 | cut -d= -f2)
+[[ -n ${FP_COLON} ]] || die "could not read the fingerprint of ${CERT}"
 FP_PLAIN=$(printf '%s' "${FP_COLON}" | tr -d ':' | tr 'A-F' 'a-f')
 
 echo "=================================================================="

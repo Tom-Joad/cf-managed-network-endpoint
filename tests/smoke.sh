@@ -11,14 +11,32 @@ PUID=$(id -u); PGID=$(id -g)
 [[ $PUID != 0 ]] || { PUID=1000; PGID=1000; }
 WORK=$(mktemp -d)
 NAME=cfmne-smoke-$$
-trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
+# A start that fails early leaves root-owned files in /config: remove them
+# through a container (the runner's user can't).
+trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true
+      docker run --rm --entrypoint sh -v "$WORK:/w" "$IMAGE" -c "rm -rf /w/*" >/dev/null 2>&1 || true
+      rm -rf "$WORK"' EXIT
 
 fail() { echo "FAIL: $*" >&2; docker logs "$NAME" >&2 || true; exit 1; }
 
 start() { # extra docker args
     docker rm -f "$NAME" >/dev/null 2>&1 || true
     docker run -d --name "$NAME" -p 127.0.0.1:6443:6443 \
-        -e PUID="$PUID" -e PGID="$PGID" "$@" "$IMAGE" >/dev/null
+        -e PUID="$PUID" -e PGID="$PGID" "$@" "$IMAGE" >/dev/null \
+        || fail "docker run failed (is host port 6443 taken, e.g. by a cfmne-test container?)"
+    wait_healthy
+}
+
+# Prints the served fingerprint; on failure it prints nothing and returns 0, so
+# the callers' comparisons fail through fail() (with the container log) and
+# not through set -e before fail() runs.
+served_fp() {
+    openssl s_client -connect 127.0.0.1:6443 </dev/null 2>/dev/null \
+        | openssl x509 -noout -fingerprint -sha256 | cut -d= -f2 || true
+}
+
+# Waits until the container is healthy; fails on timeout.
+wait_healthy() {
     for _ in $(seq 1 60); do
         [[ $(docker inspect -f '{{.State.Health.Status}}' "$NAME") == healthy ]] && return 0
         sleep 2
@@ -26,13 +44,16 @@ start() { # extra docker args
     fail "container did not become healthy"
 }
 
-served_fp() {
-    openssl s_client -connect 127.0.0.1:6443 </dev/null 2>/dev/null \
-        | openssl x509 -noout -fingerprint -sha256 | cut -d= -f2
+# Waits until the container has stopped (the start is expected to fail).
+wait_exited() {
+    for _ in $(seq 1 60); do
+        [[ $(docker inspect -f '{{.State.Status}}' "$NAME") == running ]] || return 0
+        sleep 2
+    done
 }
 
 logged_fp() {
-    docker logs "$NAME" 2>&1 | grep -E '^   ([0-9A-F]{2}:){31}[0-9A-F]{2}$' | tail -n1 | tr -d ' '
+    docker logs "$NAME" 2>&1 | grep -E '^   ([0-9A-F]{2}:){31}[0-9A-F]{2}$' | tail -n1 | tr -d ' ' || true
 }
 
 mkdir -p "$WORK/config"
@@ -52,15 +73,19 @@ if grep -q 'Based on images from linuxserver\.io' <<<"$BANNER"; then fail "the b
 WORKERS=$(docker exec "$NAME" ps -eo user,args | awk '/nginx: worker/ {print $1}')
 [[ -n $WORKERS ]] || fail "no nginx worker found"
 [[ $WORKERS != *root* ]] || fail "nginx worker runs as root"
-# Only 6443 listens: the base image's default site must be gone.
-if curl -sk --max-time 3 https://127.0.0.1:443/ >/dev/null 2>&1; then fail "443 answers"; fi
+# Only 6443 listens: the base image's default site must be gone. Probe inside
+# the container: 443 on the host says nothing about the image.
+if docker exec "$NAME" curl -sk --max-time 3 https://127.0.0.1:443/ >/dev/null 2>&1; then fail "443 answers"; fi
+# nginx logs errors to the container log, not to files in /config that nothing
+# rotates; the access log (only the health check's requests) is dropped.
+[[ $(docker exec "$NAME" readlink /config/log/nginx/access.log) == /dev/null ]] || fail "access.log is not linked to /dev/null"
+[[ $(docker exec "$NAME" readlink /config/log/nginx/error.log) == /dev/stderr ]] || fail "error.log is not linked to stderr"
+in_log() { local out; out=$(docker logs "$NAME" 2>&1); grep -qE -- "$1" <<<"$out"; }
+if in_log '"GET / HTTP/[0-9.]+" 200'; then fail "the health check's requests are in the container log"; fi
 
 echo "== restart keeps the fingerprint"
 docker restart "$NAME" >/dev/null
-for _ in $(seq 1 60); do
-    [[ $(docker inspect -f '{{.State.Health.Status}}' "$NAME") == healthy ]] && break
-    sleep 2
-done
+wait_healthy
 [[ $(served_fp) == "$FP" ]] || fail "fingerprint changed after a restart"
 
 echo "== recreate with the same /config keeps the fingerprint"
@@ -70,17 +95,26 @@ start -v "$WORK/config:/config"
 echo "== only one of the two files: the container must not create a new pair"
 docker rm -f "$NAME" >/dev/null
 rm "$WORK/config/keys/cert.crt"
-docker run -d --name "$NAME" -e PUID="$PUID" -e PGID="$PGID" -v "$WORK/config:/config" "$IMAGE" >/dev/null
-for _ in $(seq 1 60); do
-    [[ $(docker inspect -f '{{.State.Status}}' "$NAME") == running ]] || break
-    sleep 2
-done
+docker run -d --name "$NAME" -e PUID="$PUID" -e PGID="$PGID" -v "$WORK/config:/config" "$IMAGE" >/dev/null \
+    || fail "docker run failed"
+wait_exited
 [[ $(docker inspect -f '{{.State.Status}}' "$NAME") != running ]] || fail "started with half a key pair"
 # Read the log first: with pipefail, `docker logs | grep -q` fails at random
 # when grep exits on the first match and docker logs gets SIGPIPE.
 LOG=$(docker logs "$NAME" 2>&1)
 grep -q 'holds only one of' <<<"$LOG" || fail "no error about the missing file"
 [[ ! -f $WORK/config/keys/cert.crt ]] || fail "a new certificate was created"
+
+echo "== key pair can't be created: the key step must stop with its own error"
+docker rm -f "$NAME" >/dev/null
+mkdir -p "$WORK/config3" "$WORK/emptykeys"
+docker run -d --name "$NAME" -e PUID="$PUID" -e PGID="$PGID" \
+    -v "$WORK/config3:/config" -v "$WORK/emptykeys:/config/keys:ro" "$IMAGE" >/dev/null \
+    || fail "docker run failed"
+wait_exited
+[[ $(docker inspect -f '{{.State.Status}}' "$NAME") != running ]] || fail "started without a key pair"
+in_log 'ERROR: could not create the key pair in /config/keys' || fail "no error from the key step"
+if in_log 'SHA-256 fingerprint of the TLS certificate'; then fail "a fingerprint was printed without a key pair"; fi
 
 echo "== takeover of a pre-1.0 /certs volume"
 mkdir -p "$WORK/old" "$WORK/config2"
