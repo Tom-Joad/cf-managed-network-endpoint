@@ -20,13 +20,14 @@ die() {
     exit 1
 }
 
-# nginx logs to stdout/stderr (the container log), not to files in /config
+# nginx logs errors to stderr (the container log), not to files in /config
 # that nothing rotates. The base image's nginx.conf still names the two files,
-# so they become links to the container's streams. Replaces the files of
-# earlier versions, which can be deleted.
+# so they become links. The access log is dropped: WARP clients only do the TLS
+# handshake, so it would hold nothing but the health check's request every 30 s.
+# Replaces the files of earlier versions, which can be deleted.
 LOGS=/config/log/nginx
 mkdir -p "${LOGS}" || die "could not create ${LOGS}"
-ln -sfn /dev/stdout "${LOGS}/access.log" || die "could not link ${LOGS}/access.log to stdout"
+ln -sfn /dev/null "${LOGS}/access.log" || die "could not link ${LOGS}/access.log to /dev/null"
 ln -sfn /dev/stderr "${LOGS}/error.log" || die "could not link ${LOGS}/error.log to stderr"
 
 mkdir -p "${KEYS}" || die "could not create ${KEYS}"

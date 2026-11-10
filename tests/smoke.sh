@@ -76,11 +76,12 @@ WORKERS=$(docker exec "$NAME" ps -eo user,args | awk '/nginx: worker/ {print $1}
 # Only 6443 listens: the base image's default site must be gone. Probe inside
 # the container: 443 on the host says nothing about the image.
 if docker exec "$NAME" curl -sk --max-time 3 https://127.0.0.1:443/ >/dev/null 2>&1; then fail "443 answers"; fi
-# nginx logs to the container log, not to files in /config that nothing rotates.
-[[ $(docker exec "$NAME" readlink /config/log/nginx/access.log) == /dev/stdout ]] || fail "access.log is not linked to stdout"
+# nginx logs errors to the container log, not to files in /config that nothing
+# rotates; the access log (only the health check's requests) is dropped.
+[[ $(docker exec "$NAME" readlink /config/log/nginx/access.log) == /dev/null ]] || fail "access.log is not linked to /dev/null"
 [[ $(docker exec "$NAME" readlink /config/log/nginx/error.log) == /dev/stderr ]] || fail "error.log is not linked to stderr"
 in_log() { local out; out=$(docker logs "$NAME" 2>&1); grep -qE -- "$1" <<<"$out"; }
-in_log '"GET / HTTP/[0-9.]+" 200' || fail "the access log is not in the container log"
+if in_log '"GET / HTTP/[0-9.]+" 200'; then fail "the health check's requests are in the container log"; fi
 
 echo "== restart keeps the fingerprint"
 docker restart "$NAME" >/dev/null

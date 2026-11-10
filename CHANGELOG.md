@@ -8,11 +8,12 @@ version.
 ## [Unreleased]
 
 ### Fixed
-- nginx now logs to the container log (`docker logs`) instead of files in
-  `/config/log/nginx/` that nothing rotated. The two log files are links to
-  stdout/stderr now; `access.log` and `error.log` of earlier versions are
-  replaced, and any rotated copies next to them (`*.log.1`, `*.gz`) can be
-  deleted.
+- nginx now logs errors to the container log (`docker logs`) instead of files
+  in `/config/log/nginx/` that nothing rotated. The access log is dropped: it
+  held only the health check's request every 30 seconds, since WARP clients
+  only do the TLS handshake. `access.log` and `error.log` of earlier versions
+  are replaced by links, and any rotated copies next to them (`*.log.1`,
+  `*.gz`) can be deleted.
 - The key step stops with an `ERROR:` line when it can't create or copy the key
   pair, read-only `/config/keys` for example, instead of printing an empty
   fingerprint and reporting success.
