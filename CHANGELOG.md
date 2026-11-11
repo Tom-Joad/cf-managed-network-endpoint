@@ -5,6 +5,12 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [1.0.14] - 2026-11-11
+
+### Security
+- Security updates of the distribution packages, picked up by rebuilding the image:
+  - `git` 2.54.1-r0 (CVE-2026-105437, CVE-2026-111760, CVE-2026-113408, CVE-2026-114466, CVE-2026-114467, CVE-2026-114469)
+
 ## [1.0.13] - 2026-11-10
 
 ### Fixed
@@ -144,6 +150,7 @@ you have in Cloudflare.
 - Images with SBOM and provenance, scanned with Trivy, signed with cosign.
 - `SECURITY.md`, issue templates, Dependabot for Docker and GitHub Actions.
 
+[1.0.14]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.13...v1.0.14
 [1.0.13]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.12...v1.0.13
 [1.0.12]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.11...v1.0.12
 [1.0.11]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.10...v1.0.11
