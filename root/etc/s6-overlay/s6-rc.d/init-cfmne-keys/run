@@ -11,59 +11,121 @@ CN="managed-network.internal"
 # Where versions before 1.0.0 kept the pair (a volume mounted at /certs).
 OLD=/certs
 
-echo "cf-managed-network-endpoint ${CFMNE_VERSION:-dev} starting"
+# Messages carry a timestamp like the rest of the container log (the shell form
+# of the runtime standard); only the fingerprint box below is printed bare.
+log() { printf '[%(%Y-%m-%d %H:%M:%S)T] %s\n' -1 "$*"; }
+warn() { log "WARNING: $*"; }
+
+log "cf-managed-network-endpoint ${CFMNE_VERSION:-dev} starting"
 
 # Stop with a clear message when the key pair can't be created or read. Without
 # this the step would go on and report success without a key pair.
 die() {
-    echo "ERROR: $*" >&2
+    log "ERROR: $*" >&2
     exit 1
 }
 
+fp_of() { openssl x509 -in "$1" -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2; }
+
+# True when the key belongs to the certificate (same public key).
+same_pair() {
+    local pub
+    pub=$(openssl x509 -in "$1" -noout -pubkey 2>/dev/null) || return 1
+    [[ -n ${pub} && ${pub} == "$(openssl pkey -in "$2" -pubout 2>/dev/null)" ]]
+}
+
 # nginx logs errors to stderr (the container log), not to files in /config
-# that nothing rotates. The base image's nginx.conf still names the two files,
-# so they become links. The access log is dropped: WARP clients only do the TLS
+# that nothing rotates. The access log is dropped: WARP clients only do the TLS
 # handshake, so it would hold nothing but the health check's request every 30 s.
-# Replaces the files of earlier versions, which can be deleted.
+# The directives are changed in nginx.conf itself. Links from the log files to
+# /dev/null and /dev/stderr (version 1.0.13) don't work: the base image's
+# `lsiown -R /config/log` follows them and hands /dev/null to abc.
+# The links of 1.0.13 are removed; log files of earlier versions can be deleted.
 LOGS=/config/log/nginx
+NGINX_CONF=/config/nginx/nginx.conf
 mkdir -p "${LOGS}" || die "could not create ${LOGS}"
-ln -sfn /dev/null "${LOGS}/access.log" || die "could not link ${LOGS}/access.log to /dev/null"
-ln -sfn /dev/stderr "${LOGS}/error.log" || die "could not link ${LOGS}/error.log to stderr"
+for f in "${LOGS}/access.log" "${LOGS}/error.log"; do
+    if [[ -L ${f} ]]; then
+        case $(readlink "${f}") in /dev/null | /dev/stderr) rm -f "${f}" ;; esac
+    fi
+done
+if [[ -f ${NGINX_CONF} ]]; then
+    sed -i -E \
+        -e 's#^([[:space:]]*)error_log[[:space:]]+/config/log/nginx/error\.log[[:space:]]*;#\1error_log stderr;#' \
+        -e 's#^([[:space:]]*)access_log[[:space:]]+/config/log/nginx/access\.log[[:space:]]*;#\1access_log off;#' \
+        "${NGINX_CONF}" || die "could not change the log settings in ${NGINX_CONF}"
+fi
 
 mkdir -p "${KEYS}" || die "could not create ${KEYS}"
 
+# New files are written next to the final ones and moved into place, so an
+# aborted start never leaves half a pair. The key goes first: when only the key
+# is in place and the new certificate is still here, the move is finished below.
+NEW_CRT="${KEYS}/.cfmne-new.crt"
+NEW_KEY="${KEYS}/.cfmne-new.key"
+if [[ -f ${KEY} && ! -e ${CERT} && -s ${NEW_CRT} ]] && same_pair "${NEW_CRT}" "${KEY}"; then
+    log "Finishing an interrupted start: moving the new certificate into place"
+    mv -f "${NEW_CRT}" "${CERT}" || die "could not move ${NEW_CRT} to ${CERT}"
+fi
+rm -f "${NEW_CRT}" "${NEW_KEY}"
+
+# Moves a complete, matching pair from the temporary names into place.
+install_pair() {
+    same_pair "${NEW_CRT}" "${NEW_KEY}" || die "the new certificate and key do not belong together"
+    mv -f "${NEW_KEY}" "${KEY}" || die "could not move the key to ${KEY}"
+    mv -f "${NEW_CRT}" "${CERT}" || die "could not move the certificate to ${CERT}"
+}
+
 if [[ -f ${CERT} && -f ${KEY} ]]; then
-    echo "Using the existing certificate: ${CERT}"
+    log "Using the existing certificate: ${CERT}"
+    # A pair mounted at /certs is only read when /config/keys has none. Say so
+    # when it differs, or the old fingerprint stays in use without a hint.
+    if [[ -f ${OLD}/cert.pem && -f ${OLD}/key.pem ]]; then
+        OLD_FP=$(fp_of "${OLD}/cert.pem")
+        IN_USE_FP=$(fp_of "${CERT}")
+        if [[ ${OLD_FP} != "${IN_USE_FP}" ]]; then
+            warn "${OLD} holds a different certificate and is ignored: ${KEYS} already has one."
+            warn "  in use (${CERT}): ${IN_USE_FP}"
+            warn "  ignored (${OLD}/cert.pem): ${OLD_FP:-unreadable}"
+            warn "To use the one from ${OLD} instead, see \"Switching to another certificate\" in the README."
+        fi
+    fi
 elif [[ -f ${CERT} || -f ${KEY} ]]; then
-    echo "ERROR: ${KEYS} holds only one of cert.crt/cert.key." >&2
-    echo "Check the volume or restore it from backup. No new certificate is" >&2
-    echo "created on purpose: it would change the fingerprint." >&2
+    [[ -f ${CERT} ]] && MISSING=cert.key || MISSING=cert.crt
+    log "ERROR: ${KEYS} holds only one of cert.crt/cert.key (${MISSING} is missing)." >&2
+    log "Check the volume or restore it from backup. No new certificate is" >&2
+    log "created on purpose: it would change the fingerprint. To accept a new" >&2
+    log "fingerprint, delete the remaining file and start again." >&2
     exit 1
 elif [[ -f ${OLD}/cert.pem && -f ${OLD}/key.pem ]]; then
-    echo "Taking over the certificate from ${OLD} (same fingerprint as before)"
-    cp "${OLD}/cert.pem" "${CERT}" || die "could not copy ${OLD}/cert.pem to ${CERT}"
-    cp "${OLD}/key.pem" "${KEY}" || die "could not copy ${OLD}/key.pem to ${KEY}"
+    log "Taking over the certificate from ${OLD} (same fingerprint as before)"
+    cp "${OLD}/cert.pem" "${NEW_CRT}" || die "could not copy ${OLD}/cert.pem to ${NEW_CRT}"
+    cp "${OLD}/key.pem" "${NEW_KEY}" || die "could not copy ${OLD}/key.pem to ${NEW_KEY}"
+    install_pair
 elif [[ -f ${OLD}/cert.pem || -f ${OLD}/key.pem ]]; then
-    echo "ERROR: ${OLD} holds only one of cert.pem/key.pem." >&2
-    echo "Check the volume or restore it from backup. No new certificate is" >&2
-    echo "created on purpose: it would change the fingerprint." >&2
+    log "ERROR: ${OLD} holds only one of cert.pem/key.pem." >&2
+    log "Check the volume or restore it from backup. No new certificate is" >&2
+    log "created on purpose: it would change the fingerprint." >&2
     exit 1
 else
-    echo "No certificate found: creating one (CN=${CN}, RSA 2048, 3650 days)"
-    openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
-        -subj "/CN=${CN}" -keyout "${KEY}" -out "${CERT}" \
-        || die "could not create the key pair in ${KEYS}"
+    log "No certificate found: creating one (CN=${CN}, RSA 2048, 3650 days)"
+    # openssl prints progress dots to stderr: keep them out of the log unless it fails.
+    GEN=$(umask 077 && openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+        -subj "/CN=${CN}" -keyout "${NEW_KEY}" -out "${NEW_CRT}" 2>&1) \
+        || { echo "${GEN}" >&2; die "could not create the key pair in ${KEYS}"; }
+    install_pair
 fi
 
 # The pair must exist now, however it got here (a failed cp or openssl may
 # leave half of it or nothing).
 [[ -s ${CERT} && -s ${KEY} ]] || die "could not create the key pair in ${KEYS}: cert.crt or cert.key is missing or empty"
+same_pair "${CERT}" "${KEY}" || die "${KEY} does not belong to ${CERT}: nginx would not start with them"
 
 chmod 600 "${KEY}" || die "could not set the mode of ${KEY}"
 chmod 644 "${CERT}" || die "could not set the mode of ${CERT}"
 lsiown -R abc:abc "${KEYS}" || die "could not change the owner of ${KEYS}"
 
-FP_COLON=$(openssl x509 -in "${CERT}" -noout -fingerprint -sha256 | cut -d= -f2)
+FP_COLON=$(fp_of "${CERT}")
 [[ -n ${FP_COLON} ]] || die "could not read the fingerprint of ${CERT}"
 FP_PLAIN=$(printf '%s' "${FP_COLON}" | tr -d ':' | tr 'A-F' 'a-f')
 
@@ -77,9 +139,19 @@ echo ""
 echo "   ${FP_PLAIN}"
 echo "=================================================================="
 
+# The certificate expires and Cloudflare then stops detecting the network. Say
+# when, and warn in time (see "Renewing the certificate" in the README).
+NOT_AFTER=$(openssl x509 -in "${CERT}" -noout -enddate | cut -d= -f2)
+log "The certificate is valid until ${NOT_AFTER}"
+if ! openssl x509 -in "${CERT}" -noout -checkend 0 >/dev/null; then
+    warn "The certificate has expired. See \"Renewing the certificate\" in the README."
+elif ! openssl x509 -in "${CERT}" -noout -checkend $((90 * 86400)) >/dev/null; then
+    warn "The certificate expires within 90 days. See \"Renewing the certificate\" in the README."
+fi
+
 # A host without IPv6 can't open the [::] socket and nginx would not start.
 SITE=/config/nginx/site-confs/default.conf
 if [[ ! -e /proc/net/if_inet6 && -f ${SITE} ]] && grep -q 'listen \[::\]' "${SITE}"; then
-    echo "No IPv6 on this host: removing the [::] listener from ${SITE}"
+    log "No IPv6 on this host: removing the [::] listener from ${SITE}"
     sed -i '/listen \[::\]/d' "${SITE}"
 fi

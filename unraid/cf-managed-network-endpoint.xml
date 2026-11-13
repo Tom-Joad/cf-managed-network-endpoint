@@ -28,6 +28,10 @@
 
     Network: a custom VLAN interface (e.g. br0.10) must exist on the machine; set a static
     IP outside the DHCP pool in this container's "Fixed IP address" setting.
+
+    This template uses the network "br0". On a host without a br0 bridge Unraid shows the
+    network as "none" and the container has no connectivity: choose your VLAN interface
+    (for example br0.10) or bridge under Network Type before the first start.
   </Overview>
   <Category>Network:Other Security:</Category>
   <ExtraParams>--security-opt no-new-privileges</ExtraParams>

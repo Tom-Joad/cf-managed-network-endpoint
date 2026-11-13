@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Health check: nginx answers on 6443 and serves the certificate of the key pair
+# in /config/keys. A running nginx alone isn't enough: after the files in
+# /config/keys were replaced it keeps serving the old certificate (and
+# fingerprint) until it is restarted.
+set -o pipefail
+
+CERT=/config/keys/cert.crt
+KEY=/config/keys/cert.key
+
+curl -fsk --max-time 2 https://127.0.0.1:6443/ >/dev/null || exit 1
+
+fp() { openssl x509 -noout -fingerprint -sha256 | cut -d= -f2; }
+
+SERVED=$(timeout 2 openssl s_client -connect 127.0.0.1:6443 </dev/null 2>/dev/null | fp)
+FILE=$(fp <"${CERT}")
+[[ -n ${SERVED} && ${SERVED} == "${FILE}" ]] || { echo "served certificate differs from ${CERT}" >&2; exit 1; }
+
+# The key must belong to the certificate (compare the public keys).
+PUB=$(openssl x509 -in "${CERT}" -noout -pubkey)
+[[ -n ${PUB} && ${PUB} == "$(openssl pkey -in "${KEY}" -pubout)" ]] \
+    || { echo "${KEY} does not belong to ${CERT}" >&2; exit 1; }

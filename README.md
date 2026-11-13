@@ -27,6 +27,51 @@ Network detection breaks **silently** when the fingerprint changes. Therefore:
   appdata folder in your backups.
 - If only *one* of the two files exists, the container aborts with an error
   instead of silently creating a new pair.
+- New files are written under temporary names and moved into place, so a start
+  that is stopped half-way never leaves half a pair.
+- The health check verifies that nginx serves the certificate in
+  `/config/keys` and that the key belongs to it. After you replace the files,
+  restart the container; until then it reports unhealthy.
+
+## Supported architectures and tags
+
+Multi-arch images; Docker pulls the matching one.
+
+| Architecture | Available |
+| --- | --- |
+| x86-64 | ✅ |
+| arm64 | ✅ |
+
+| Tag | Meaning |
+| --- | --- |
+| `latest` | Latest release |
+| `X.Y.Z` | A specific release |
+| `sha-…` | A specific build |
+
+## Usage
+
+**docker compose** ([docker-compose.yml](docker-compose.yml)):
+
+```yaml
+services:
+  cf-managed-network-endpoint:
+    image: ghcr.io/tom-joad/cf-managed-network-endpoint:latest
+    container_name: cf-managed-network-endpoint
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      UMASK: ${UMASK:-022}
+      TZ: ${TZ:-Etc/UTC}
+    ports:
+      - "6443:6443"
+    volumes:
+      - ./config:/config
+    security_opt:
+      - no-new-privileges:true
+```
+
+For `docker run` and Unraid see [Deployment on Unraid](#deployment-on-unraid).
 
 ## Parameters
 
@@ -41,6 +86,12 @@ Network detection breaks **silently** when the fingerprint changes. Therefore:
 
 The nginx site is `/config/nginx/site-confs/default.conf`; edit it there to
 change the answer or the TLS settings.
+
+nginx logs errors to the container log (`docker logs`); the access log is off.
+The init messages carry a timestamp. The image declares ports 80 and 443 too
+(inherited from the base image and not removable in a child image); nothing
+listens there, only 6443 does. `/config` may hold empty `php/` and `www/`
+folders that the base image creates; they are unused.
 
 ## Reading the fingerprint
 
@@ -88,6 +139,16 @@ Target environment (adapt to your network):
 | Port | `6443` (TLS) |
 | Config | `/mnt/user/appdata/cf-managed-network-endpoint` → `/config` |
 
+**Community Applications:** the template is in the Unraid Community
+Applications store (search for *cf-managed-network-endpoint*); it is the same
+file as in Option A.
+
+**Network `br0`:** the template uses the custom network `br0`. On a host
+without a `br0` bridge (other interface names, or "Host access to custom
+networks" and VLANs not set up) Unraid shows the network as "none" and the
+container has no connectivity. Pick your VLAN interface (`br0.<VLAN-ID>`) or
+bridge in the container's *Network Type* before the first start.
+
 **Option A — Unraid template:** copy
 [unraid/cf-managed-network-endpoint.xml](unraid/cf-managed-network-endpoint.xml)
 to `/boot/config/plugins/dockerMan/templates-user/`, then *Add Container* →
@@ -123,7 +184,42 @@ the new `/config` for the first start:
 
 If `/config/keys` is empty, the certificate is copied over once and the log
 shows the same fingerprint as before. Compare it with the value in Cloudflare.
-Afterwards `/certs` can be removed. The old folder is never modified.
+Afterwards `/certs` can be removed. The container never modifies the old
+folder, and it still holds the private key: **delete it yourself once the
+takeover worked** (in the example above the `certs` folder inside the appdata
+folder), so that the key isn't kept twice.
+
+If `/config/keys` already holds a pair (for example from a first start without
+`/certs`), a pair in `/certs` is ignored. The log then shows a `WARNING` with
+both fingerprints. To use the one from `/certs`, see the next section.
+
+## Switching to another certificate
+
+A new certificate means a new fingerprint, which you enter in Cloudflare.
+
+1. Stop the container.
+2. In `/config/keys`, delete `cert.crt` and `cert.key` (or move them away as a
+   backup). To use your own pair, put it there as `cert.crt` and `cert.key`
+   instead. To use an old pair from `/certs`, keep `/certs` mounted.
+3. Start the container. With nothing in `/config/keys` it takes over `/certs`
+   or creates a new pair. Read the fingerprint from the log and update the
+   managed network in Cloudflare.
+
+## Renewing the certificate
+
+The generated certificate is valid for 3650 days. The log shows the end date on
+every start (`The certificate is valid until …`) and a `WARNING` when it ends
+within 90 days or has ended. Cloudflare doesn't check the date, only the
+fingerprint, but clients or a newer WARP version may. A renewed certificate
+has a new fingerprint (the fingerprint is a hash of the certificate), so
+renewing is a switch as described above: do it in a quiet moment and change the
+fingerprint in Cloudflare right after the start. To keep the same key but get a
+later end date, create a new certificate from the existing key (`openssl req
+-x509 -new -key cert.key -days 3650 -subj /CN=managed-network.internal -out
+cert.crt`); the fingerprint changes as well.
+
+The fingerprint of the public certificate is not secret; it is printed in the
+log on purpose. Keep `cert.key` private.
 
 ## Configuring Cloudflare Zero Trust
 

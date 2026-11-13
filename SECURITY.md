@@ -16,13 +16,16 @@ choose **Report a vulnerability**. You will get an answer within a few days.
 
 The container holds a TLS private key. Of particular interest:
 
-- the private key or the fingerprint ending up in logs or the image
+- the private key ending up in logs or the image (the fingerprint of the
+  certificate is public information and is logged on purpose)
 - a way to make the container replace or overwrite the key pair, which
   would silently change the fingerprint
 - the key being readable by other users on the host
 
 The container runs nginx as a non-root user and serves one static answer on
-port 6443. It has no application logic and no other inbound ports.
+port 6443. It has no application logic and no other listening ports. The
+image also declares ports 80 and 443, inherited from the base image (`EXPOSE`
+can't be removed in a child image); nothing listens there.
 
 ## Supply chain
 

@@ -1,0 +1,7 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+# The base image's step creates php-local.ini, www2.conf and a PHP error log in
+# /config. PHP is removed from this image, so there is nothing to configure.
+# The step stays (init-keygen waits for it); it just does nothing.
+exit 0
