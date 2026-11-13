@@ -5,7 +5,7 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
-## [Unreleased]
+## [1.1.0] - 2026-11-13
 
 ### Added
 - A `WARNING` with both fingerprints when a different certificate is mounted at
@@ -39,6 +39,11 @@ version.
   old `certs` folder after the takeover.
 - SECURITY.md no longer calls the logged fingerprint a problem, and says that
   ports 80 and 443 are only declared by the base image, not listening.
+
+### Security
+- Security updates of the distribution packages, picked up by rebuilding the image:
+  - `git-init-template` 2.54.1-r0 (CVE-2026-105437, CVE-2026-111760, CVE-2026-114466)
+  - `git` 2.54.1-r0 (CVE-2026-105437, CVE-2026-111760, CVE-2026-114466)
 
 ## [1.0.13] - 2026-11-10
 
@@ -179,6 +184,7 @@ you have in Cloudflare.
 - Images with SBOM and provenance, scanned with Trivy, signed with cosign.
 - `SECURITY.md`, issue templates, Dependabot for Docker and GitHub Actions.
 
+[1.1.0]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.13...v1.1.0
 [1.0.13]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.12...v1.0.13
 [1.0.12]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.11...v1.0.12
 [1.0.11]: https://github.com/Tom-Joad/cf-managed-network-endpoint/compare/v1.0.10...v1.0.11
