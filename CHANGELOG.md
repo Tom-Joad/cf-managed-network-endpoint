@@ -5,6 +5,41 @@ All notable changes to this project are listed here. Versions follow
 upgrading (a changed volume, a renamed setting) only comes with a new major
 version.
 
+## [Unreleased]
+
+### Added
+- A `WARNING` with both fingerprints when a different certificate is mounted at
+  `/certs` than the one in `/config/keys`; the one in `/certs` was ignored
+  without a hint before. The README explains how to switch.
+- The log shows when the certificate expires and warns 90 days before (and
+  after) the end date. The README has sections on switching and renewing the
+  certificate.
+- A start that was stopped between moving the key and the certificate into
+  place is finished on the next start.
+
+### Fixed
+- The health check verifies that nginx serves the certificate in
+  `/config/keys` and that the key belongs to it, not only that nginx answers.
+- A stopped first start or takeover no longer leaves half a key pair behind (the
+  files are written under temporary names and moved), and the message for an
+  existing half pair names the missing file.
+- nginx logging is set in `nginx.conf` (`error_log stderr`, `access_log off`)
+  instead of links to `/dev/null` and `/dev/stderr` in `/config/log/nginx`:
+  those links made the base image hand `/dev/null` in the container to `abc`.
+  The links of 1.0.13 are removed.
+- The base image's PHP init step no longer creates `php-local.ini`, `www2.conf`
+  and a PHP error log in `/config`.
+- Init messages carry a timestamp and openssl's progress dots are gone from
+  the log.
+
+### Docs
+- The README has the architecture and tag table, a compose example, a note on
+  Community Applications, the `br0` hint (also in the Unraid template: on a
+  host without `br0` the network becomes "none"), and the advice to delete the
+  old `certs` folder after the takeover.
+- SECURITY.md no longer calls the logged fingerprint a problem, and says that
+  ports 80 and 443 are only declared by the base image, not listening.
+
 ## [1.0.13] - 2026-11-10
 
 ### Fixed

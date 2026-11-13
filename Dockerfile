@@ -25,8 +25,10 @@ RUN apk upgrade --no-cache \
 # s6 services and the nginx site (see root/).
 COPY root/ /
 # The base image also starts PHP-FPM and cron; this container needs neither
-# (PHP itself is removed above).
+# (PHP itself is removed above). Its init-php step is replaced by an empty one.
 RUN chmod +x /etc/s6-overlay/s6-rc.d/init-cfmne-keys/run \
+              /etc/s6-overlay/s6-rc.d/init-php/run \
+              /usr/local/bin/cfmne-healthcheck \
  && rm -f /etc/s6-overlay/s6-rc.d/user/contents.d/svc-php-fpm \
           /etc/s6-overlay/s6-rc.d/user/contents.d/svc-cron
 
@@ -35,6 +37,8 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/init-cfmne-keys/run \
 # container that looks alive and serves nothing.
 ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
 
+# Only 6443 listens. The base image also declares 80 and 443 (EXPOSE can't be
+# undone in a child image); they are metadata, nothing listens there.
 EXPOSE 6443
 
 # The key pair (/config/keys) and the nginx config (/config/nginx).
@@ -42,7 +46,7 @@ EXPOSE 6443
 VOLUME /config
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl -fsk https://127.0.0.1:6443/ || exit 1
+  CMD ["/usr/local/bin/cfmne-healthcheck"]
 
 # The entrypoint stays the base image's /init (s6-overlay), which must run as
 # PID 1: don't add `--init` to `docker run`.
