@@ -115,7 +115,7 @@ if in_log '"GET / HTTP/[0-9.]+" 200'; then fail "the health check's requests are
 echo "== health check: ok now, fails when the served certificate no longer matches the files"
 docker exec "$NAME" /usr/local/bin/cfmne-healthcheck || fail "health check fails on a healthy container"
 docker exec "$NAME" cp /config/keys/cert.crt /tmp/cert.orig
-docker exec "$NAME" sh -c 'openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=other -keyout /tmp/other.key -out /config/keys/cert.crt 2>/dev/null'
+docker exec "$NAME" sh -c 'openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=other -keyout /dev/null -out /config/keys/cert.crt 2>/dev/null'
 if docker exec "$NAME" /usr/local/bin/cfmne-healthcheck 2>/dev/null; then fail "health check ignores a certificate that differs from the one served"; fi
 docker exec "$NAME" cp /tmp/cert.orig /config/keys/cert.crt
 docker exec "$NAME" /usr/local/bin/cfmne-healthcheck || fail "health check fails after restoring the certificate"

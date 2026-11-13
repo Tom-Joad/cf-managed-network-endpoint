@@ -82,9 +82,10 @@ if [[ -f ${CERT} && -f ${KEY} ]]; then
     # when it differs, or the old fingerprint stays in use without a hint.
     if [[ -f ${OLD}/cert.pem && -f ${OLD}/key.pem ]]; then
         OLD_FP=$(fp_of "${OLD}/cert.pem")
-        if [[ ${OLD_FP} != "$(fp_of "${CERT}")" ]]; then
+        IN_USE_FP=$(fp_of "${CERT}")
+        if [[ ${OLD_FP} != "${IN_USE_FP}" ]]; then
             warn "${OLD} holds a different certificate and is ignored: ${KEYS} already has one."
-            warn "  in use (${CERT}): $(fp_of "${CERT}")"
+            warn "  in use (${CERT}): ${IN_USE_FP}"
             warn "  ignored (${OLD}/cert.pem): ${OLD_FP:-unreadable}"
             warn "To use the one from ${OLD} instead, see \"Switching to another certificate\" in the README."
         fi
